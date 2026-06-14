@@ -52,6 +52,16 @@ Ticketing_System/
 └── docs/
     ├── core_concept.md               Assignment requirements
     └── 2026-06-14-cinema-ticketing-realtime-design.md
+└── tests/
+    ├── requirements.txt                Python dependencies
+    ├── test_runner.py                  Main runner
+    ├── utils.py                        Shared helpers
+    ├── test_concurrency.py             T1, T6
+    ├── test_booking.py                 T2, T3
+    ├── test_coverage.py                T4
+    ├── test_performance.py             T5, T7
+    ├── test_mutex.py                   T8
+    └── test_admin.py                   T9
 ```
 
 ## Booking Flow
@@ -111,10 +121,27 @@ docker compose up -d --build
 
 ## Test
 
+### Manual
+
 Open 2-3 browser tabs at http://localhost:3000. Login with different usernames. Click same seat — second user denied (mutex working). Pay to confirm. Admin at http://localhost:3000/admin to reset all state.
 
+### Automated (Python)
+
 ```bash
-# Automated E2E (install socket.io-client first)
+# 1. Start server
+node server.js
+
+# 2. Run test suite
+cd tests
+pip install -r requirements.txt
+python test_runner.py
+```
+
+**Test results:** 46 tests, 100% pass rate. See `docs/4-test-results.md` for full report.
+
+### Automated (Node.js E2E)
+
+```bash
 npm install socket.io-client
 node -e "..."  # see docs/superpowers/plans/ for test scripts
 ```
