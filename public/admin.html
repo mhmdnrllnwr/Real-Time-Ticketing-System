@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Cinema Ticketing</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#0d0d0d;color:#e0e0e0;min-height:100vh;padding:20px}
+
+.container{max-width:1000px;margin:0 auto}
+h2{letter-spacing:2px;font-weight:300;text-transform:uppercase;color:#fff;text-align:center;margin-bottom:5px}
+.sub{text-align:center;font-size:13px;color:#888;margin-bottom:20px}
+
+/* Login */
+.login-box{max-width:350px;margin:60px auto;background:#111;border:1px solid #222;border-radius:10px;padding:30px;text-align:center}
+.login-box h3{color:#fff;margin-bottom:16px;font-weight:400}
+.login-box input{width:100%;background:#0d0d0d;border:1px solid #333;color:#ccc;padding:10px 14px;border-radius:6px;font-size:14px;outline:none;margin-bottom:12px}
+.login-box input:focus{border-color:#f44336}
+.login-box .btn{width:100%;padding:10px;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;background:#f44336;color:#fff}
+.login-box .err{color:#f44336;font-size:13px;margin-top:8px}
+.login-box a{color:#888;font-size:12px;text-decoration:none;display:block;margin-top:12px}
+
+/* Dashboard */
+.dashboard{display:none}
+.top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.top-bar .btn{background:#f44336;color:#fff;padding:10px 24px;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600}
+.top-bar .btn:hover{background:#ff6659}
+.top-bar .btn-fail{background:#ff9800;color:#000}
+.top-bar .btn-fail:hover{background:#ffb74d}
+.top-bar .btn-fail.active{background:#4caf50;color:#000}
+.top-bar .btn-fail.active:hover{background:#66bb6a}
+.top-bar .btn-refresh{background:#333;color:#ccc;padding:10px 24px;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;margin-right:8px}
+.top-bar .btn-refresh:hover{background:#444}
+.top-bar .online{font-size:13px;color:#888}
+
+.panel{background:#111;border:1px solid #222;border-radius:10px;overflow:hidden;margin-bottom:16px}
+.panel-header{background:#1a1a1a;padding:10px 14px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#888;border-bottom:1px solid #222}
+.panel-body{padding:14px}
+
+/* Stats bar */
+.stats{display:flex;gap:16px;margin-bottom:16px}
+.stat-card{flex:1;background:#111;border:1px solid #222;border-radius:10px;padding:14px;text-align:center}
+.stat-num{font-size:28px;font-weight:700;color:#4facfe}
+.stat-label{font-size:11px;color:#888;text-transform:uppercase;margin-top:4px}
+
+/* Tables */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;color:#888;font-weight:500;border-bottom:1px solid #222;font-size:11px;text-transform:uppercase}
+td{padding:8px 10px;border-bottom:1px solid #1a1a1a;color:#ccc}
+tr:last-child td{border-bottom:none}
+
+.status-tag{display:inline-block;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:600;text-transform:uppercase}
+.tag-available{background:#1b5e20;color:#4caf50}
+.tag-locked{background:#b71c1c;color:#f44336}
+.tag-booked{background:#1a1a1a;color:#666}
+
+.user-list{display:flex;flex-wrap:wrap;gap:6px}
+.user-chip{background:#1a1a1a;color:#ccc;padding:4px 10px;border-radius:14px;font-size:12px}
+
+.no-data{color:#666;font-size:13px;text-align:center;padding:20px}
+
+/* Toast */
+#toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:12px 28px;border-radius:8px;font-size:14px;font-weight:500;z-index:100;opacity:0;transition:opacity 0.3s;pointer-events:none}
+.toast-error{background:#d32f2f;color:#fff}
+.toast-success{background:#2e7d32;color:#fff}
+.toast-info{background:#4facfe;color:#000}
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>ADMIN PANEL</h2>
+  <p class="sub">Cinema Ticketing System</p>
+
+  <!-- Login Box -->
+  <div class="login-box" id="loginBox">
+    <h3>Admin Login</h3>
+    <input type="password" id="passwordInput" placeholder="Enter admin password" />
+    <button class="btn" id="btnLogin">Login</button>
+    <div class="err" id="loginErr"></div>
+    <a href="/">Back to User Page</a>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="dashboard" id="dashboard">
+    <div class="top-bar">
+      <div>
+        <button class="btn-refresh" id="btnRefresh">Refresh</button>
+        <button class="btn btn-fail" id="btnFailToggle">Enable Force-Fail</button>
+        <button class="btn" id="btnReset">Reset All Seats</button>
+      </div>
+      <div class="online" id="onlineInfo">Users online: 0</div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat-card"><div class="stat-num" id="statAvailable">32</div><div class="stat-label">Available</div></div>
+      <div class="stat-card"><div class="stat-num" id="statLocked">0</div><div class="stat-label">Locked</div></div>
+      <div class="stat-card"><div class="stat-num" id="statBooked">0</div><div class="stat-label">Booked</div></div>
+      <div class="stat-card"><div class="stat-num" id="statUsers">0</div><div class="stat-label">Online Users</div></div>
+    </div>
+
+    <!-- Online Users -->
+    <div class="panel">
+      <div class="panel-header">Online Users</div>
+      <div class="panel-body">
+        <div class="user-list" id="userList"><div class="no-data">No users online</div></div>
+      </div>
+    </div>
+
+    <!-- Seat Table -->
+    <div class="panel">
+      <div class="panel-header">Seats</div>
+      <div class="panel-body">
+        <table>
+          <thead><tr><th>#</th><th>Status</th><th>User</th><th>Time</th></tr></thead>
+          <tbody id="seatTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Bookings -->
+    <div class="panel">
+      <div class="panel-header">Bookings</div>
+      <div class="panel-body">
+        <div id="bookingList"><div class="no-data">No bookings yet</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+var socket = io();
+var isAdmin = false;
+
+// DOM
+var loginBox = document.getElementById('loginBox');
+var dashboard = document.getElementById('dashboard');
+var passwordInput = document.getElementById('passwordInput');
+var btnLogin = document.getElementById('btnLogin');
+var loginErr = document.getElementById('loginErr');
+var btnFailToggle = document.getElementById('btnFailToggle');
+var btnReset = document.getElementById('btnReset');
+var btnRefresh = document.getElementById('btnRefresh');
+var userList = document.getElementById('userList');
+var seatTable = document.getElementById('seatTable');
+var bookingList = document.getElementById('bookingList');
+var onlineInfo = document.getElementById('onlineInfo');
+var statAvailable = document.getElementById('statAvailable');
+var statLocked = document.getElementById('statLocked');
+var statBooked = document.getElementById('statBooked');
+var statUsers = document.getElementById('statUsers');
+var toast = document.getElementById('toast');
+
+function showToast(msg, type) {
+  toast.textContent = msg;
+  toast.className = 'toast-' + (type || 'info');
+  toast.style.opacity = '1';
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(function() { toast.style.opacity = '0'; }, 3000);
+}
+
+function formatTime(isoStr) {
+  if (!isoStr) return '—';
+  var d = new Date(isoStr);
+  return d.toLocaleTimeString();
+}
+
+function renderDashboard(data) {
+  // Stats
+  var available = 0, locked = 0, booked = 0;
+  data.seats.forEach(function(s) {
+    if (s.status === 'AVAILABLE') available++;
+    else if (s.status === 'LOCKED') locked++;
+    else if (s.status === 'BOOKED') booked++;
+  });
+  statAvailable.textContent = available;
+  statLocked.textContent = locked;
+  statBooked.textContent = booked;
+  statUsers.textContent = data.users.length;
+  onlineInfo.textContent = 'Users online: ' + data.users.length;
+
+  // User list
+  if (data.users.length === 0) {
+    userList.innerHTML = '<div class="no-data">No users online</div>';
+  } else {
+    userList.innerHTML = data.users.map(function(u) {
+      return '<div class="user-chip">' + u + '</div>';
+    }).join('');
+  }
+
+  // Seat table
+  seatTable.innerHTML = data.seats.map(function(s) {
+    var tagClass = 'tag-available';
+    var user = '—';
+    var time = '—';
+    if (s.status === 'LOCKED') {
+      tagClass = 'tag-locked';
+      user = s.lockedBy || '—';
+      time = formatTime(s.lockedAt);
+    } else if (s.status === 'BOOKED') {
+      tagClass = 'tag-booked';
+      user = s.bookedBy || '—';
+      // Get booking time from bookings array
+      var booking = (data.bookings || []).find(function(b) { return b.seatId === s.id; });
+      time = booking ? formatTime(booking.bookedAt) : '—';
+    }
+    return '<tr>' +
+      '<td>' + s.id + '</td>' +
+      '<td><span class="status-tag ' + tagClass + '">' + s.status + '</span></td>' +
+      '<td>' + user + '</td>' +
+      '<td>' + time + '</td>' +
+      '</tr>';
+  }).join('');
+
+  // Bookings
+  if (data.bookings.length === 0) {
+    bookingList.innerHTML = '<div class="no-data">No bookings yet</div>';
+  } else {
+    bookingList.innerHTML = '<table><thead><tr><th>Booking ID</th><th>Seat</th><th>User</th><th>Amount</th><th>Time</th></tr></thead><tbody>' +
+      data.bookings.map(function(b) {
+        return '<tr>' +
+          '<td>' + b.id + '</td>' +
+          '<td>#' + b.seatId + '</td>' +
+          '<td>' + b.userId + '</td>' +
+          '<td>RM ' + b.amount + '</td>' +
+          '<td>' + formatTime(b.bookedAt) + '</td>' +
+          '</tr>';
+      }).join('') +
+    '</tbody></table>';
+  }
+}
+
+// Login
+btnLogin.onclick = function() {
+  socket.emit('admin-login', { password: passwordInput.value });
+};
+
+passwordInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') btnLogin.click();
+});
+
+// Reset
+// Toggle payment force-fail
+btnFailToggle.onclick = function() {
+  socket.emit('toggle-payment-fail');
+};
+
+socket.on('payment-fail-state', function(data) {
+  if (data.forceFail) {
+    btnFailToggle.textContent = 'Disable Force-Fail';
+    btnFailToggle.classList.add('active');
+  } else {
+    btnFailToggle.textContent = 'Enable Force-Fail';
+    btnFailToggle.classList.remove('active');
+  }
+});
+
+btnReset.onclick = function() {
+  if (confirm('Reset ALL seats? This will clear all locks and bookings.')) {
+    socket.emit('reset-seats');
+  }
+};
+
+// Refresh
+btnRefresh.onclick = function() {
+  socket.emit('admin-refresh');
+};
+
+// Socket events
+socket.on('admin-init', function(data) {
+  isAdmin = true;
+  loginBox.style.display = 'none';
+  dashboard.style.display = 'block';
+  renderDashboard(data);
+  if (data.paymentFail) {
+    btnFailToggle.textContent = 'Disable Force-Fail';
+    btnFailToggle.classList.add('active');
+  }
+  showToast('Admin logged in', 'success');
+});
+
+socket.on('admin-update', function(data) {
+  renderDashboard(data);
+});
+
+socket.on('admin-err', function(msg) {
+  loginErr.textContent = msg;
+});
+
+socket.on('admin-ok', function(msg) {
+  showToast(msg, 'success');
+});
+
+// Real-time updates forwarded to admin
+socket.on('locked', function() { socket.emit('admin-refresh'); });
+socket.on('free', function() { socket.emit('admin-refresh'); });
+socket.on('confirmed', function() { socket.emit('admin-refresh'); });
+socket.on('user-joined', function() { socket.emit('admin-refresh'); });
+socket.on('user-left', function() { socket.emit('admin-refresh'); });
+socket.on('reset-all', function(data) {
+  showToast('System reset: ' + data.count + ' seats cleared', 'info');
+  socket.emit('admin-refresh');
+});
+</script>
+</body>
+</html>

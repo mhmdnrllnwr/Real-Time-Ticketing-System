@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cinema Ticketing — Real-Time</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#0d0d0d;color:#e0e0e0;min-height:100vh;display:flex;justify-content:center;align-items:flex-start;padding:20px}
+
+.container{width:100%;max-width:900px}
+h2{letter-spacing:2px;font-weight:300;text-transform:uppercase;color:#fff;text-align:center;margin-bottom:5px}
+.sub{text-align:center;font-size:13px;color:#888;margin-bottom:20px}
+
+/* ── Login Bar ── */
+.login-bar{display:flex;align-items:center;gap:10px;background:#111;border:1px solid #222;border-radius:10px;padding:10px 16px;margin-bottom:16px}
+.login-bar input{flex:1;background:#0d0d0d;border:1px solid #333;color:#ccc;padding:8px 14px;border-radius:6px;font-size:14px;outline:none;max-width:250px}
+.login-bar input:focus{border-color:#4facfe}
+.login-bar .btn{padding:8px 20px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.2s}
+.btn-join{background:#4facfe;color:#000}
+.btn-join:hover{background:#6fc2fe}
+
+/* ── Main Layout ── */
+.main{display:flex;gap:16px}
+.main-left{flex:2}
+.main-right{flex:1;display:flex;flex-direction:column;gap:12px}
+
+/* ── Screen ── */
+.screen{height:4px;background:#4facfe;box-shadow:0 10px 30px rgba(79,172,254,0.4);margin:0 auto 30px;border-radius:2px;width:80%}
+
+/* ── Seat Grid ── */
+.grid{display:grid;grid-template-columns:repeat(8,1fr);gap:10px}
+.seat{aspect-ratio:1;background:#222;border:1px solid #333;border-radius:8px 8px 4px 4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:#555;transition:all 0.25s cubic-bezier(0.25,0.8,0.25,1);user-select:none}
+.seat:hover:not(.x):not(.mine):not(.booked){background:#333;transform:translateY(-2px);border-color:#444;color:#aaa}
+.mine{background:linear-gradient(145deg,#2e7d32,#1b5e20)!important;border-color:#4caf50;color:#fff;box-shadow:0 0 10px rgba(76,175,80,0.4);cursor:pointer}
+.x{background:linear-gradient(145deg,#d32f2f,#b71c1c)!important;border-color:#f44336;color:#fff;cursor:not-allowed}
+.booked{background:#111!important;border-color:#1a1a1a;color:#333;cursor:not-allowed}
+
+/* ── Legend ── */
+.legend{display:flex;justify-content:center;gap:16px;margin-top:20px;font-size:11px;color:#666}
+.leg-item{display:flex;align-items:center;gap:6px}
+.dot{width:10px;height:10px;border-radius:2px}
+
+/* ── Status Panel ── */
+.panel{background:#111;border:1px solid #222;border-radius:10px;overflow:hidden}
+.panel-header{background:#1a1a1a;padding:10px 14px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#888;border-bottom:1px solid #222}
+.panel-body{padding:14px}
+.session-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px}
+.session-label{color:#888}
+.session-value{color:#fff;font-weight:500}
+.timer{font-size:28px;font-weight:700;color:#ff6b6b;text-align:center;margin:10px 0;font-variant-numeric:tabular-nums}
+
+/* ── Buttons ── */
+.btn{display:block;width:100%;padding:10px;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;margin-bottom:6px;transition:all 0.2s}
+.btn:disabled{opacity:0.4;cursor:not-allowed}
+.btn-pay{background:linear-gradient(145deg,#2e7d32,#1b5e20);color:#fff}
+.btn-pay:hover:not(:disabled){background:#3c9a40}
+.btn-release{background:#d32f2f;color:#fff}
+.btn-release:hover:not(:disabled){background:#f44336}
+
+/* ── Toast ── */
+#toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:12px 28px;border-radius:8px;font-size:14px;font-weight:500;z-index:100;opacity:0;transition:opacity 0.3s;pointer-events:none}
+.toast-error{background:#d32f2f;color:#fff}
+.toast-success{background:#2e7d32;color:#fff}
+.toast-info{background:#4facfe;color:#000}
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>CINEMA TICKETING</h2>
+  <p class="sub">Real-Time Seat Reservation System</p>
+
+  <div style="text-align:right;margin-bottom:4px"><a href="/admin" style="color:#888;font-size:12px;text-decoration:none">Admin Panel</a></div>
+
+  <!-- Login Bar -->
+  <div class="login-bar">
+    <span style="font-size:14px">👤</span>
+    <input type="text" id="usernameInput" placeholder="Enter username" maxlength="20" />
+    <button class="btn btn-join" id="btnJoin">Join</button>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main">
+    <!-- Left: Seat Grid -->
+    <div class="main-left">
+      <div class="screen"></div>
+      <div class="grid" id="grid"></div>
+      <div class="legend">
+        <div class="leg-item"><div class="dot" style="background:#222;border:1px solid #333"></div>Available</div>
+        <div class="leg-item"><div class="dot" style="background:#2e7d32"></div>Your Lock</div>
+        <div class="leg-item"><div class="dot" style="background:#d32f2f"></div>Locked</div>
+        <div class="leg-item"><div class="dot" style="background:#111;border:1px solid #1a1a1a"></div>Booked</div>
+      </div>
+    </div>
+
+    <!-- Right: Session & Actions -->
+    <div class="main-right">
+      <div class="panel">
+        <div class="panel-header">Your Session</div>
+        <div class="panel-body" id="sessionPanel">
+          <div id="sessionInfo" style="display:none">
+            <div class="session-row"><span class="session-label">User</span><span class="session-value" id="sessUser">—</span></div>
+            <div class="session-row"><span class="session-label">Locked Seat</span><span class="session-value" id="sessSeat">—</span></div>
+            <div class="timer" id="timerDisplay">—:—</div>
+          </div>
+          <div id="noSession" style="color:#666;font-size:13px;text-align:center;padding:10px">Login to book seats</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">Actions</div>
+        <div class="panel-body">
+          <button class="btn btn-pay" id="btnPay" disabled>Pay</button>
+          <button class="btn btn-release" id="btnRelease" disabled>Release Seat</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ── State ──
+const socket = io();
+let myUsername = null;
+let myLockedSeatId = null;
+let timerInterval = null;
+let timerExpiresAt = null;
+
+// ── DOM Refs ──
+const grid = document.getElementById('grid');
+const usernameInput = document.getElementById('usernameInput');
+const btnJoin = document.getElementById('btnJoin');
+const btnPay = document.getElementById('btnPay');
+const btnRelease = document.getElementById('btnRelease');
+const sessionInfo = document.getElementById('sessionInfo');
+const noSession = document.getElementById('noSession');
+const sessUser = document.getElementById('sessUser');
+const sessSeat = document.getElementById('sessSeat');
+const timerDisplay = document.getElementById('timerDisplay');
+const toast = document.getElementById('toast');
+
+// ── Toast ──
+function showToast(msg, type) {
+  toast.textContent = msg;
+  toast.className = 'toast-' + (type || 'info');
+  toast.style.opacity = '1';
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(function() { toast.style.opacity = '0'; }, 3000);
+}
+
+// ── Timer ──
+function startTimerDisplay(durationMs) {
+  clearInterval(timerInterval);
+  timerExpiresAt = Date.now() + durationMs;
+  updateTimerDisplay();
+  timerInterval = setInterval(updateTimerDisplay, 1000);
+}
+
+function updateTimerDisplay() {
+  if (!timerExpiresAt) { timerDisplay.textContent = '—:—'; return; }
+  var remaining = Math.max(0, timerExpiresAt - Date.now());
+  var mins = Math.floor(remaining / 60000);
+  var secs = Math.floor((remaining % 60000) / 1000);
+  timerDisplay.textContent = mins + ':' + String(secs).padStart(2, '0');
+  if (remaining <= 60000) timerDisplay.style.color = '#f44336';
+  else if (remaining <= 120000) timerDisplay.style.color = '#ff9800';
+  else timerDisplay.style.color = '#ff6b6b';
+}
+
+function stopTimerDisplay() {
+  clearInterval(timerInterval);
+  timerExpiresAt = null;
+  timerDisplay.textContent = '—:—';
+  timerDisplay.style.color = '#ff6b6b';
+}
+
+// ── Build Seat Grid (8×4 = 32 seats) ──
+for (var i = 1; i <= 32; i++) {
+  (function(seatNum) {
+    var div = document.createElement('div');
+    div.className = 'seat';
+    div.id = 's' + seatNum;
+    div.textContent = seatNum;
+
+    div.onclick = function() {
+      if (div.classList.contains('booked')) return;
+
+      if (div.classList.contains('mine')) {
+        // Unlock seat
+        socket.emit('unlock', { seatId: seatNum });
+      } else if (!div.classList.contains('x')) {
+        // Lock seat
+        socket.emit('lock', { seatId: seatNum });
+      }
+    };
+
+    grid.appendChild(div);
+  })(i);
+}
+
+function getSeatEl(id) {
+  return document.getElementById('s' + id);
+}
+
+// ── Button Handlers ──
+btnJoin.onclick = function() {
+  var name = usernameInput.value.trim();
+  if (!name) { showToast('Please enter a username', 'error'); return; }
+  socket.emit('login', { username: name });
+};
+
+usernameInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') btnJoin.click();
+});
+
+btnPay.onclick = function() {
+  if (myLockedSeatId !== null) {
+    socket.emit('pay', { seatId: myLockedSeatId });
+  }
+};
+
+btnRelease.onclick = function() {
+  if (myLockedSeatId !== null) {
+    socket.emit('unlock', { seatId: myLockedSeatId });
+  }
+};
+
+// ── Socket Event Handlers ──
+
+// Login successful — receive initial state
+socket.on('init', function(data) {
+  myUsername = data.username;
+  sessUser.textContent = myUsername;
+  sessionInfo.style.display = 'block';
+  noSession.style.display = 'none';
+  btnJoin.disabled = true;
+  usernameInput.disabled = true;
+  showToast('Welcome, ' + myUsername + '!', 'success');
+
+  // Mark unavailable seats with correct status
+  if (data.seats) {
+    if (data.seats.locked) {
+      data.seats.locked.forEach(function(id) {
+        var el = getSeatEl(id);
+        if (el) el.classList.add('x');
+      });
+    }
+    if (data.seats.booked) {
+      data.seats.booked.forEach(function(id) {
+        var el = getSeatEl(id);
+        if (el) el.classList.add('booked');
+      });
+    }
+  }
+
+});
+
+// Seat lock succeeded
+socket.on('ok', function(data) {
+  // Clear previous lock if any
+  if (myLockedSeatId !== null) {
+    var oldEl = getSeatEl(myLockedSeatId);
+    if (oldEl) oldEl.classList.remove('mine');
+  }
+
+  myLockedSeatId = data.seatId;
+  var el = getSeatEl(data.seatId);
+  if (el) { el.classList.remove('x'); el.classList.add('mine'); }
+
+  sessSeat.textContent = 'Seat ' + data.seatId;
+  btnPay.disabled = false;
+  btnRelease.disabled = false;
+
+  // Start 5-minute countdown on UI
+  startTimerDisplay(300000);
+  showToast('Seat ' + data.seatId + ' locked — pay within 5 minutes', 'info');
+});
+
+// Error from any operation
+socket.on('err', function(msg) {
+  showToast(msg, 'error');
+});
+
+// Another user locked a seat
+socket.on('locked', function(data) {
+  var el = getSeatEl(data.seatId);
+  if (el) { el.classList.remove('mine'); el.classList.add('x'); }
+
+  // If another user locked our seat, clear our state
+  if (myLockedSeatId === data.seatId && data.by !== myUsername) {
+    myLockedSeatId = null;
+    sessSeat.textContent = '—';
+    btnPay.disabled = true;
+    btnRelease.disabled = true;
+    stopTimerDisplay();
+  }
+});
+
+// A seat was freed (timeout or manual unlock)
+socket.on('free', function(data) {
+  var el = getSeatEl(data.seatId);
+  if (el) { el.classList.remove('x', 'mine', 'booked'); }
+
+  // Clear our state if this was our seat
+  if (myLockedSeatId === data.seatId) {
+    myLockedSeatId = null;
+    sessSeat.textContent = '—';
+    btnPay.disabled = true;
+    btnRelease.disabled = true;
+    stopTimerDisplay();
+  }
+});
+
+// Booking confirmed
+socket.on('confirmed', function(data) {
+  var el = getSeatEl(data.seatId);
+  if (el) { el.classList.remove('x', 'mine'); el.classList.add('booked'); }
+
+  // Clear our state if this was our booking
+  if (myLockedSeatId === data.seatId || (data.booking && data.booking.userId === myUsername)) {
+    myLockedSeatId = null;
+    sessSeat.textContent = '—';
+    btnPay.disabled = true;
+    btnRelease.disabled = true;
+    stopTimerDisplay();
+    showToast('Booking confirmed! Seat ' + data.seatId, 'success');
+  }
+});
+
+// A user joined
+socket.on('user-joined', function(data) {
+  if (data.username !== myUsername) {
+    showToast(data.username + ' joined', 'info');
+  }
+});
+
+// Admin reset all seats
+socket.on('reset-all', function(data) {
+  // Clear all seat states
+  for (var i = 1; i <= 32; i++) {
+    var el = getSeatEl(i);
+    if (el) el.className = 'seat';
+  }
+  // Clear personal state
+  myLockedSeatId = null;
+  sessSeat.textContent = '—';
+  btnPay.disabled = true;
+  btnRelease.disabled = true;
+  stopTimerDisplay();
+  showToast('Admin reset all seats (' + data.count + ' cleared)', 'info');
+});
+
+// Connection lost
+socket.on('disconnect', function() {
+  showToast('Connection lost', 'error');
+});
+</script>
+</body>
+</html>
