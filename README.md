@@ -15,6 +15,12 @@ node server.js
 
 Open http://localhost:3000
 
+**Stop:** `Ctrl+C` in terminal, or:
+
+```powershell
+Get-NetTCPConnection -LocalPort 3000 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+```
+
 ## Pages
 
 | Page | URL | Description |
@@ -117,6 +123,9 @@ docker run -p 3000:3000 cinema-ticketing
 
 # Docker + Redis (multi-instance)
 docker compose up -d --build
+
+# Stop
+docker compose down
 ```
 
 ## Test
@@ -137,7 +146,20 @@ pip install -r requirements.txt
 python test_runner.py
 ```
 
-**Test results:** 46 tests, 100% pass rate. See `docs/4-test-results.md` for full report.
+**Test results:** Full report at `docs/4-test-results.md`.
+
+| Metric | Result |
+|--------|--------|
+| Total tests | 46 |
+| Passed | 46 |
+| Pass rate | **100%** |
+| Lock response | avg 20.67ms (<250ms deadline) |
+| Pay response | avg 40.87ms (<250ms deadline) |
+| Concurrent locks (5 clients) | 20.55ms total |
+| CFG branch coverage | **100%** (5/5 paths) |
+| Mutex denial | PASS |
+| Payment rollback | PASS |
+| Admin reset | PASS |
 
 ### Automated (Node.js E2E)
 
