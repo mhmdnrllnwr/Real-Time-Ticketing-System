@@ -167,3 +167,125 @@ python test_runner.py
 npm install socket.io-client
 node -e "..."  # see docs/superpowers/plans/ for test scripts
 ```
+
+---
+
+## Assignment 2 — System Details
+
+**Course:** CSE443 Real-Time Software Engineering
+**System:** Cinema Ticketing Reservation System
+**Stack:** Node.js · Express 5 · Socket.IO 4 · Vanilla JS
+
+### New Real-Time Requirements
+
+| # | Requirement | RTOS Concept | Implementation |
+|---|-------------|-------------|----------------|
+| R1 | Real-time seat locking with concurrency control | **Mutex**, deadlock prevention | `MutexManager` — test-and-set acquire, owner-only release, release-before-acquire |
+| R2 | Booking with payment rollback + timeout auto-release | **Event flag**, fail-safe rollback | `BookingManager.processBooking()` — payment fail reverts seat, 5-min timer force-releases |
+
+Both real-time: Socket.IO broadcasts state changes (`locked`/`free`/`confirmed`) to all clients instantly. No polling.
+
+### Control Flow Graph — `processBooking()`
+
+```mermaid
+flowchart TD
+    START([ENTRY]) --> S1[Logger.start]
+    S1 --> D1{seatExists?}
+    D1 -->|fail| E1[return error]
+    D1 -->|pass| D2{amountMatches?}
+    D2 -->|fail| E1
+    D2 -->|pass| S2[Get Seat]
+    S2 --> D3{isLockedBy?}
+    D3 -->|false| E2[return: not your lock]
+    D3 -->|true| S3[PaymentProcessor.process]
+    S3 --> D4{throws?}
+    D4 -->|yes| S4[release seat<br>force mutex<br>cancel timer]
+    S4 --> E3[return: system error]
+    D4 -->|no| D5{success?}
+    D5 -->|false| S5[rollback seat<br>release mutex<br>cancel timer]
+    S5 --> E4[return: payment failed]
+    D5 -->|true| S6[confirm seat<br>create Booking<br>release mutex<br>cancel timer]
+    S6 --> SUCCESS([return success])
+
+    style START fill:#4facfe,color:#000
+    style SUCCESS fill:#2e7d32,color:#fff
+    style E1 fill:#d32f2f,color:#fff
+    style E2 fill:#d32f2f,color:#fff
+    style E3 fill:#d32f2f,color:#fff
+    style E4 fill:#d32f2f,color:#fff
+```
+
+**Decision nodes:** 5 — seatExists, amountMatches, isLockedBy, payment throws, payment success
+**Path coverage:** 6/6 (100%) — tested via T2a (happy), T2b (rollback), T3 (CFG paths)
+**Source:** `src/managers/BookingManager.js:49-109` (45 executable statements, single entry/exit)
+
+### Performance — Soft Real-Time (<250ms)
+
+| Operation | Avg | Max | Deadline |
+|-----------|-----|-----|----------|
+| Seat lock | 20.67ms | 20.84ms | <250ms |
+| Payment + booking | 40.87ms | 41.13ms | <250ms |
+| 5 concurrent locks | 20.55ms total | — | — |
+
+### Test Results
+
+| Metric | Value |
+|--------|-------|
+| Total tests | 46 |
+| Passed | 46 |
+| Pass rate | **100%** |
+| CFG branch coverage | 100% (6/6 paths) |
+| Mutex denial | PASS |
+| Payment rollback | PASS |
+| Admin reset | PASS |
+
+### What's Complete vs Report Work
+
+| Area | Status |
+|------|--------|
+| Working application | Done |
+| Test suite (46 tests) | Done |
+| Performance data | Done |
+| CFG-annotated source code | Done |
+| Section 1 text (background + rationale) | Needs writing |
+| Section 2 diagrams (flow/viewpoint) | Needs drawing |
+| Section 3 CFG diagram | Done (Mermaid above) |
+| Section 3 demo video (≤3 min) | Needs recording |
+| Section 3 coverage discussion | Needs writing |
+| Section 4 timing discussion | Needs writing |
+| ≥5 references | Needs compiling |
+| Cover page + appendix | Needs creating |
+
+### Architecture
+
+```
+Ticketing_System/
+├── server.js                         Entry point
+├── public/
+│   ├── user.html                     Seat booking UI
+│   └── admin.html                    Admin dashboard
+├── src/
+│   ├── models/
+│   │   ├── Seat.js                   State machine (AVAILABLE→LOCKED→BOOKED)
+│   │   └── Booking.js                Immutable booking record
+│   ├── managers/
+│   │   ├── MutexManager.js           RTOS mutex (acquire/release/forceRelease)
+│   │   ├── SeatManager.js            Seat CRUD + lock orchestration
+│   │   ├── BookingManager.js         Core booking flow (CFG-ready 30-50 LOC)
+│   │   ├── PaymentProcessor.js       Mock payment + force-fail toggle
+│   │   └── TimeoutWatcher.js         Event flag — 5-min auto-release
+│   ├── auth/
+│   │   └── SessionManager.js         Username ↔ socket mapping
+│   ├── transport/
+│   │   └── socketHandler.js          Socket.IO event routing
+│   └── utils/
+│       ├── constants.js              Config, enums, deadlines
+│       ├── Logger.js                 <250ms soft real-time proof
+│       └── Validator.js              Defensive input validation
+└── docs/
+    ├── system-details.md             Full assignment mapping
+    ├── 5-cfg-diagram.md              CFG with Mermaid diagram
+    ├── 0-core_concept.md             Assignment requirements guide
+    ├── 3-assignment2-test-plan.md    Python test plan
+    └── 4-test-results.md             Results (46/46 pass)
+```
